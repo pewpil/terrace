@@ -20,7 +20,7 @@ handleInput(tui);
 handleKeyboardControls(tui);
 handleMouseControls(tui);
 
-const title = new Text({
+new Text({
   parent: tui,
   zIndex: 0,
   text: "Hello, deno_tui!",

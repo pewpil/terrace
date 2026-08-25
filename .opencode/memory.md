@@ -37,6 +37,7 @@ evolves.
 - `Button`: `label.text` accepts a `Computed`/`Signal`; `state.when("active", cb)` for press events;
   `handleInput`, `handleKeyboardControls`, `handleMouseControls` must be called; `tui.dispatch()` closes on Ctrl+C; `tui.run()` starts loop.
 - Styling (`style`/`theme.base` etc.) expects a Stylizer function like `crayon.bgBlack` (returns styled string).
+- **`verbatimModuleSyntax: true` is INCOMPATIBLE with deno_tui@2.1.11** — the library imports types via value-style `import { Offset, Rectangle }` (no `import type`). With `verbatimModuleSyntax` on, Deno emits those as runtime imports and fails at link time ("does not provide an export named 'Offset'"). Do NOT enable this flag.
 
 ## Conventions
 

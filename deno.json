@@ -7,5 +7,14 @@
     "tui": "https://deno.land/x/tui@2.1.11/mod.ts",
     "tui/components": "https://deno.land/x/tui@2.1.11/src/components/mod.ts",
     "crayon": "https://deno.land/x/crayon@3.3.3/mod.ts"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
   }
 }
