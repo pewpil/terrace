@@ -20,21 +20,29 @@ handleInput(tui);
 handleKeyboardControls(tui);
 handleMouseControls(tui);
 
-tui.on("keyPress", (event: {
-  key: string;
-  ctrl: boolean;
-  meta: boolean;
-  shift: boolean;
-}) => {
-  if (event.key.toLowerCase() === "q" && !event.ctrl && !event.meta && !event.shift) {
-    tui.destroy();
-    return;
-  }
+tui.on(
+  "keyPress",
+  (event: { key: string; ctrl: boolean; meta: boolean; shift: boolean }) => {
+    if (
+      event.key.toLowerCase() === "q" &&
+      !event.ctrl &&
+      !event.meta &&
+      !event.shift
+    ) {
+      tui.emit("destroy");
+      return;
+    }
 
-  if (event.key.toLowerCase() === "c" && !event.ctrl && !event.meta && !event.shift) {
-    count.value++;
-  }
-});
+    if (
+      event.key.toLowerCase() === "c" &&
+      !event.ctrl &&
+      !event.meta &&
+      !event.shift
+    ) {
+      count.value++;
+    }
+  },
+);
 
 new Text({
   parent: tui,
