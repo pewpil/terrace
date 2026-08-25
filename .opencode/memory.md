@@ -21,6 +21,23 @@ evolves.
 - **Language:** TypeScript (runs natively in Deno, no separate build step needed).
 - No scaffolding done yet — user wants to confirm approach before I build it.
 
+## Scaffold (done)
+
+- `deno.json`: import map pins `tui@2.1.11` (https://deno.land/x/tui@2.1.11/mod.ts),
+  `tui/components` -> src/components/mod.ts, `crayon@3.3.3`. Tasks: `dev` = `deno run --allow-read --allow-write main.ts`, `check` = `deno check main.ts`.
+- `main.ts`: basic deno_tui demo (Tui + Button counter + Text).
+
+### deno_tui 2.1.11 API gotchas (verified)
+
+- `new Tui({ style, refreshRate })` calls `Deno.consoleSize()` — REQUIRES a real TTY;
+  running in a non-interactive shell throws "stdin, stdout, and stderr are not connected to a terminal". Expected; works in real terminal.
+- All components REQUIRE a `theme` property (type `Partial<Theme>` — can be `{}` but must be present).
+- `Text` component: `text` is `string | Signal<string>` (NOT `{ value: ... }`),
+  and its `rectangle` has NO `height` (only column/row/width; height auto = 1).
+- `Button`: `label.text` accepts a `Computed`/`Signal`; `state.when("active", cb)` for press events;
+  `handleInput`, `handleKeyboardControls`, `handleMouseControls` must be called; `tui.dispatch()` closes on Ctrl+C; `tui.run()` starts loop.
+- Styling (`style`/`theme.base` etc.) expects a Stylizer function like `crayon.bgBlack` (returns styled string).
+
 ## Conventions
 
 ## Architecture Decisions
