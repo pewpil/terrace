@@ -5,9 +5,9 @@ import {
   handleMouseControls,
   Signal,
   Tui,
-} from "tui";
-import { Button, Text } from "tui/components";
-import { crayon } from "crayon";
+} from 'tui';
+import { Button, Text } from 'tui/components';
+import { crayon } from 'crayon';
 
 const tui = new Tui({
   style: crayon.bgBlack,
@@ -21,20 +21,20 @@ handleKeyboardControls(tui);
 handleMouseControls(tui);
 
 tui.on(
-  "keyPress",
+  'keyPress',
   (event: { key: string; ctrl: boolean; meta: boolean; shift: boolean }) => {
     if (
-      event.key.toLowerCase() === "q" &&
+      event.key.toLowerCase() === 'q' &&
       !event.ctrl &&
       !event.meta &&
       !event.shift
     ) {
-      tui.emit("destroy");
+      tui.emit('destroy');
       return;
     }
 
     if (
-      event.key.toLowerCase() === "c" &&
+      event.key.toLowerCase() === 'c' &&
       !event.ctrl &&
       !event.meta &&
       !event.shift
@@ -47,7 +47,7 @@ tui.on(
 new Text({
   parent: tui,
   zIndex: 0,
-  text: "Hello, deno_tui!",
+  text: 'Hello, deno_tui!',
   theme: {
     base: crayon.white,
   },
@@ -79,7 +79,7 @@ const button = new Button({
   },
 });
 
-button.state.when("active", () => {
+button.state.when('active', () => {
   count.value++;
 });
 
