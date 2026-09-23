@@ -1,0 +1,35 @@
+{
+  "name": "terrace",
+  "version": "0.1.0",
+  "description": "A typing game built with OpenTUI",
+  "license": "GPL-3.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "npm run build && node --experimental-ffi dist/index.js",
+    "start": "npm run build && node --experimental-ffi dist/index.js",
+    "build": "babel src --out-dir dist --extensions .ts,.tsx",
+    "check": "tsc --noEmit",
+    "lint": "eslint src",
+    "fmt": "prettier --write src",
+    "fmt:check": "prettier --check src"
+  },
+  "dependencies": {
+    "@opentui/core": "^0.5.12",
+    "@opentui/solid": "^0.5.12",
+    "solid-js": "1.9.12"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.0",
+    "@babel/core": "^7.28.0",
+    "@babel/preset-typescript": "^7.28.0",
+    "babel-preset-solid": "1.9.12",
+    "babel-plugin-module-resolver": "^5.0.3",
+    "@types/node": "^26.6.2",
+    "eslint": "^10.11.0",
+    "eslint-plugin-prettier": "^5.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "prettier": "^3.6.0"
+  }
+}
