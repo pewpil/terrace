@@ -52,7 +52,7 @@ export const Menu = (props: { onNavigate: (screen: Screen) => void }) => {
         backgroundColor: '#1a1b26',
       }}
     >
-      <ascii_font text="TERRACE" />
+      <ascii_font font="block" text="TERRACE" />
       <box style={{ height: 2 }} />
       <For each={MENU_ITEMS}>
         {(item, i) => (
