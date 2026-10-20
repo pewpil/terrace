@@ -8,7 +8,7 @@ export interface MenuItem {
   action: 'start' | 'exit'
 }
 
-const MENU_ITEMS: MenuItem[] = [
+export const MENU_ITEMS: MenuItem[] = [
   {
     label: 'Start typing session',
     hint: 'not implemented yet',
@@ -25,7 +25,7 @@ export const Menu = (props: { onNavigate: (screen: Screen) => void }) => {
     if (item.action === 'exit') {
       renderer.destroy()
     } else {
-      props.onNavigate('game')
+      props.onNavigate('session')
     }
   }
 

@@ -9,10 +9,14 @@
     "dev": "npm run build && node --experimental-ffi dist/index.js",
     "start": "npm run build && node --experimental-ffi dist/index.js",
     "build": "babel src --out-dir dist --extensions .ts,.tsx",
+    "build:test": "babel src --out-dir dist-test/src --extensions .ts,.tsx && babel tests --out-dir dist-test/tests --extensions .ts,.tsx",
+    "test": "npm run build:test && node --experimental-ffi --no-warnings --test \"dist-test/tests/*.test.js\"",
+    "build:exe": "npm run build && node scripts/build-exe.mjs",
+    "skill": "node scripts/install-skills.mjs",
     "check": "tsc --noEmit",
-    "lint": "eslint src",
-    "fmt": "prettier --write src",
-    "fmt:check": "prettier --check src"
+    "lint": "eslint src tests",
+    "fmt": "prettier --write src tests",
+    "fmt:check": "prettier --check src tests"
   },
   "dependencies": {
     "@opentui/core": "^0.5.12",
@@ -23,13 +27,16 @@
     "@babel/cli": "^7.28.0",
     "@babel/core": "^7.28.0",
     "@babel/preset-typescript": "^7.28.0",
-    "babel-preset-solid": "1.9.12",
-    "babel-plugin-module-resolver": "^5.0.3",
     "@types/node": "^26.6.2",
+    "babel-plugin-module-resolver": "^5.0.3",
+    "babel-preset-solid": "1.9.12",
+    "esbuild": "^0.28.2",
     "eslint": "^10.11.0",
     "eslint-plugin-prettier": "^5.5.0",
+    "postject": "^1.0.0-alpha.6",
+    "prettier": "^3.6.0",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.70.1",
-    "prettier": "^3.6.0"
+    "typescript-eslint": "^8.70.1"
   }
 }
