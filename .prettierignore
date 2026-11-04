@@ -1,0 +1,7 @@
+package-lock.json
+node_modules
+.nuxt
+.output
+.opencode
+.agents
+LICENSE
