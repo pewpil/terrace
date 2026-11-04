@@ -57,7 +57,7 @@ test('enter on first item opens the session page', async () => {
     await setup.renderOnce()
     const frame = setup.captureCharFrame()
     assert.doesNotMatch(frame, /Start typing session/)
-    assert.match(frame, /esc to return to menu/)
+    assert.match(frame, /tab restart \| esc menu/)
   } finally {
     setup.renderer.destroy()
   }

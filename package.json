@@ -9,7 +9,7 @@
     "dev": "npm run build && node --experimental-ffi dist/index.js",
     "start": "npm run build && node --experimental-ffi dist/index.js",
     "build": "babel src --out-dir dist --extensions .ts,.tsx",
-    "build:test": "babel src --out-dir dist-test/src --extensions .ts,.tsx && babel tests --out-dir dist-test/tests --extensions .ts,.tsx",
+    "build:test": "rm -rf dist-test && babel src --out-dir dist-test/src --extensions .ts,.tsx && babel tests --out-dir dist-test/tests --extensions .ts,.tsx",
     "test": "npm run build:test && node --experimental-ffi --no-warnings --test \"dist-test/tests/*.test.js\"",
     "build:exe": "npm run build && node scripts/build-exe.mjs",
     "skill": "node scripts/install-skills.mjs",
