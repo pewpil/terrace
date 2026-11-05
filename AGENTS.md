@@ -5,6 +5,10 @@ stale notes as the project evolves and date entries when useful.
 
 ## Working style
 
+- **No git usage by the agent.** Do not run git
+  commands at all - not even read-only ones (log/show/diff/status) and above
+  all not commits - unless the user explicitly asks for it. Version control
+  belongs to the user; let them review and commit changes.
 - **Discourage big stretch tasks / one-shotting.** Build step by step, verify
   each step (typecheck/lint/build plus a curl smoke test for web pages), and
   confirm before moving on.
@@ -51,6 +55,18 @@ stale notes as the project evolves and date entries when useful.
   configured in `.opencode/opencode.json`, pointing `--project` at this repo
   root; the project registration lives in `project.toml`. Config copied from
   `~/Projects/craft/terrace` (the donor repo) on 2026-11-05.
+- `vectorcraft` MCP server (vector graphics editing/export) is configured in
+  `.opencode/opencode.json` as headless `vectorcraft-cli mcp`, with file access
+  confined to this repo. The AppImage (`~/Applications/vectorcraft-*.AppImage`)
+  does not install a CLI wrapper, so `~/.local/bin/vectorcraft-cli` was copied
+  out of it (0.21.0); refresh that copy when the AppImage updates.
+- `vectorcraft` agent skill (usage guidance for the MCP/CLI) lives at
+  `.agents/skills/vectorcraft`, installed from the community
+  `midasmatterhorn/artcraft-skills` corpus (MIT, pinned to VectorCraft 0.21.0).
+  There is no official skill yet: `storytold/craft-skills` is an empty
+  placeholder and upstream issue #3642 requests one. If `npm run skill`
+  deletes/recreates the skill directory and OpenCode drops it, run
+  `opencode api post /api/location/reload` to re-register it.
 - Skills: `craft-anything` in `skills-lock.json`, restored via
   `npm run skill` (which uses `skills experimental_install --frozen-lockfile`
   and verifies SHA-256 hashes). Github-type entries come from

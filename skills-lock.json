@@ -6,6 +6,12 @@
       "sourceType": "download",
       "skillPath": "skill/SKILL.md",
       "computedHash": "9af75a58edd9d3a149412f99f2b59fc36c4883e3142cc700c78a8ed50397b8f8"
+    },
+    "vectorcraft": {
+      "source": "midasmatterhorn/artcraft-skills",
+      "sourceType": "github",
+      "skillPath": "vectorcraft/SKILL.md",
+      "computedHash": "6cc388d720425577dd1b84ac094781c136a248ffc6b06d4388fa69a5a94f1fe1"
     }
   }
 }
