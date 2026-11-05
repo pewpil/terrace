@@ -51,7 +51,7 @@ stale notes as the project evolves and date entries when useful.
   configured in `.opencode/opencode.json`, pointing `--project` at this repo
   root; the project registration lives in `project.toml`. Config copied from
   `~/Projects/craft/terrace` (the donor repo) on 2026-11-05.
-- Skills: `craft-anything` + `opentui` in `skills-lock.json`, restored via
+- Skills: `craft-anything` in `skills-lock.json`, restored via
   `npm run skill` (which uses `skills experimental_install --frozen-lockfile`
   and verifies SHA-256 hashes). Github-type entries come from
   `npx skills add ...`; download-type entries (craft-anything) are
@@ -80,8 +80,7 @@ stale notes as the project evolves and date entries when useful.
 - Global head (title, description, favicon) lives in `nuxt.config.ts`; the
   tokyonight palette (`#1a1b26` bg, `#c0caf5` text, `#565f89` dim,
   `#a6e3a1` accent) is set in `app/assets/css/main.css`.
-- The opentui skill entry in `skills-lock.json` is stale (TUI era) - a
-  candidate to remove or replace later.
+- The opentui agent skill was removed on 2026-11-05 (terrace is web-only now).
 
 ## Design reference - typing session UX (proven in the TUI, ready to port)
 
