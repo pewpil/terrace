@@ -1,3 +1,19 @@
 {
-  "$schema": "https://opencode.ai/config.json"
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "craft-anything": {
+        "type": "local",
+        "command": [
+          "/home/sadanddan/.local/bin/craft-anything-cli",
+          "--project",
+          "/home/sadanddan/Projects/terrace",
+          "mcp"
+        ],
+        "timeout": {
+          "startup": 60000
+        }
+      }
+    }
+  }
 }

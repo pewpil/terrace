@@ -1,11 +1,17 @@
 {
   "version": 1,
   "skills": {
+    "craft-anything": {
+      "source": "https://raw.githubusercontent.com/storytold/craft-anything/v0.3.0/crates/setup/src/skill.md",
+      "sourceType": "download",
+      "skillPath": "skill/SKILL.md",
+      "computedHash": "9af75a58edd9d3a149412f99f2b59fc36c4883e3142cc700c78a8ed50397b8f8"
+    },
     "opentui": {
       "source": "anomalyco/opentui",
       "sourceType": "github",
       "skillPath": "packages/web/src/content/SKILL.md",
-      "computedHash": "481a408ae635e73bfabeab6c48379a48219995120ce6793b3e6a6f73402797fc"
+      "computedHash": "a0a2926ca048f5ae9c572aa2d0540f7b4d82cbdd7ec2e8936b0604be23327e0d"
     }
   }
 }

@@ -45,6 +45,18 @@ stale notes as the project evolves and date entries when useful.
 - `npm run lint` / `npm run fmt` / `npm run fmt:check`
 - `npm run skill` - restore agent skills from `skills-lock.json`
 
+## OpenCode / agent setup
+
+- `craft-anything` MCP server (for evidence-backed reverse-engineering) is
+  configured in `.opencode/opencode.json`, pointing `--project` at this repo
+  root; the project registration lives in `project.toml`. Config copied from
+  `~/Projects/craft/terrace` (the donor repo) on 2026-11-05.
+- Skills: `craft-anything` + `opentui` in `skills-lock.json`, restored via
+  `npm run skill` (which uses `skills experimental_install --frozen-lockfile`
+  and verifies SHA-256 hashes). Github-type entries come from
+  `npx skills add ...`; download-type entries (craft-anything) are
+  hand-maintained in the lockfile and cannot be installed through `skills add`.
+
 ## Environment gotchas (this machine)
 
 - **Port 3000 is occupied** by another running app of the user's ("dvibd").
