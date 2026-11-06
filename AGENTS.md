@@ -42,10 +42,40 @@ stale notes as the project evolves and date entries when useful.
   smoke test of the SSR output. Add vitest + @nuxt/test-utils when game logic
   lands.
 
+## Nuxt 5 bump (when available)
+
+- Status 2026-11-05: Nuxt 5 is not on npm (`nuxt@latest` is 4.6.4).
+  `nuxt.config.ts` already sets `future.compatibilityVersion: 5`; verified with
+  prepare/typecheck/lint/build and a production smoke test. Node >=26 already
+  meets Nuxt 5's floor. Official guide:
+  <https://nuxt.com/docs/5.x/getting-started/upgrade>.
+- Check `npm view nuxt dist-tags` first. `npx nuxt upgrade` follows `latest`,
+  which may still be 4.x; install the 5.x version explicitly. Match Nuxt's own
+  ranges for `vue`, `vue-router` and `@nuxt/eslint`; do not bump blindly.
+- The compatibility flag already turns on the Nuxt 5 defaults (case-sensitive
+  and typed routes, normalized page names, serializable `definePageMeta`,
+  client payload extraction, `clearNuxtState` reset, non-async `callHook`,
+  `navigateTo` early return, server-only head composables not auto-imported,
+  PostCSS defaults off, Options API compiled out,
+  `noUncheckedSideEffectImports`). Remove `future.compatibilityVersion` once
+  the 5.x guide says it is redundant.
+- Nitro v3: Nuxt 5 runs on Nitro v3; the compatibility flag does not bring it.
+  There is no `server/` here yet. When one is added, import handlers/helpers
+  from `nuxt/server` (works on 4.6.4 too) instead of relying on h3/nitropack
+  auto-imports. Module/Nitro code uses `nitro/*`, not `nitropack`.
+- Vite 8/Rolldown: the current build reports Vite 8.3.5. Any future Vite config
+  should use `rolldownOptions`/`oxc`, not `rollupOptions`/`esbuild`.
+- Verify after the bump: `npx nuxt prepare`, `npm run typecheck`,
+  `npm run lint`, `npm run build`, then
+  `PORT=4000 node .output/server/index.mjs` and curl `/` (200) plus `/INDEX`
+  (404, case-sensitive). Update the Stack pins above and prune this section.
+
 ## Commands
 
-- `npm run dev` - dev server (port 3000 is taken on this machine, see below)
-- `npm run build` / `npm run preview` - production build / serve it
+- `npm run dev` - dev server (runs on port 4000 via `devServer`, see below)
+- `npm run build` / `npm run preview` - production build / serve it (4000)
+- `npm run smoke` - esbuild-bundles and runs the pure-module smoke assertions
+  (`scripts/smoke-typing.mjs`; no server needed)
 - `npm run lint` / `npm run fmt` / `npm run fmt:check`
 - `npm run skill` - restore agent skills from `skills-lock.json`
 
@@ -67,7 +97,19 @@ stale notes as the project evolves and date entries when useful.
   placeholder and upstream issue #3642 requests one. If `npm run skill`
   deletes/recreates the skill directory and OpenCode drops it, run
   `opencode api post /api/location/reload` to re-register it.
-- Skills: `craft-anything` in `skills-lock.json`, restored via
+- Nuxt agent skills from `onmax/nuxt-skills` are installed under
+  `.agents/skills/`: `nuxt`, `vue-best-practices`, `nanime`,
+  `nuxt-better-auth`, `nuxt-content`, `nuxt-i18n`, `nuxt-modules`,
+  `nuxt-protokit`, `nuxt-seo`, `nuxt-studio`, `nuxt-ui`, `nuxt-users`,
+  `nuxthub`. The `nuxt` skill targets Nuxt 5.0.0-0; its
+  `references/core-config.md` ("Nuxt 5 Default Changes"), `features-server.md`,
+  `core-routing.md` and `core-data-fetching.md` cover the migration details.
+  Nuxt 5 behavior is already enabled via `future.compatibilityVersion: 5`; see
+  "Nuxt 5 bump" above for the remaining steps. The module skills cover optional
+  packages that are not dependencies yet; do not add one merely because its
+  skill is present.
+- Skills: everything installed under `.agents/skills` is pinned in
+  `skills-lock.json` and restored via
   `npm run skill` (which uses `skills experimental_install --frozen-lockfile`
   and verifies SHA-256 hashes). Github-type entries come from
   `npx skills add ...`; download-type entries (craft-anything) are
@@ -75,33 +117,46 @@ stale notes as the project evolves and date entries when useful.
 
 ## Environment gotchas (this machine)
 
-- **Port 3000 is occupied** by another running app of the user's ("dvibd").
-  Use `PORT=4173 npm run dev` or `PORT=4173 node .output/server/index.mjs`
-  for terrace, or ask the user to free the port. NEVER pkill the dvibd
-  process.
+- **Port 3000 is reserved** for something else on this machine (not ours to
+  bind). terrace's official port is **4000**: `devServer.port` in
+  `nuxt.config.ts` (dev) and `PORT=4000` in the `preview` script; production
+  serving is `PORT=4000 node .output/server/index.mjs`.
 - `pkill -f <pattern>` self-matches the invoking shell's command line. Use
   the `[n]ode` bracket trick so the pattern does not match your own command.
 - Build output goes to `.output/`; smoke test =
-  `PORT=4173 node .output/server/index.mjs` then curl.
+  `PORT=4000 node .output/server/index.mjs` then curl.
 - npm 11 blocks esbuild's postinstall via allowScripts. Harmless: the native
   binary ships through the `@esbuild/linux-x64` optional dependency, and
   `nuxt build` works.
 
-## Current state (2026-11-04)
+## Current state (2026-11-06)
 
-- Landing page only (`app/pages/index.vue`): TERRACE wordmark with a blinking
-  caret block and an inert "press start" button that reveals
-  "soon - web edition is under construction". NO game page yet; the user
-  explicitly deferred it until after the landing page.
-- Global head (title, description, favicon) lives in `nuxt.config.ts`; the
-  tokyonight palette (`#1a1b26` bg, `#c0caf5` text, `#565f89` dim,
-  `#a6e3a1` accent) is set in `app/assets/css/main.css`.
+- `app/pages/index.vue` is the typing test itself (monkeytype RE rebuild, the
+  implementation-ready spec is `investigation/rebuild-report.md`):
+  vocabulary difficulty is terrace's own axis (beginner..general ladder
+  over a filtered OpenSubtitles-2018 frequency table:
+  `app/utils/vocab/en-ranked.ts`, regenerated by `scripts/build-vocab.mjs`,
+  banded in `app/utils/word-list.ts`); the test flow itself is default
+  config only (time 30). Pure logic lives in `app/utils/`
+  (`word-list`, `word-engine`, `typing-session`; smoke-asserted via
+  `scripts/smoke-typing.mjs` with `npm run smoke`), UI state in
+  `app/composables/use-typing-session.ts`, result screen in
+  `app/components/result-screen.vue`. SSR determinism: the first session uses
+  a fixed seed (`INITIAL_SEED` 0x2b715107) so hydration matches server HTML;
+  restarts reroll via Math.random, repeat replays the same seed.
+- Brand: tokyonight palette tokens in `app/assets/css/main.css`; vector mark
+  (ascending letter steps + block caret) mastered in VectorCraft at
+  `assets/brand/terrace-mark.vectorcraft`, exported as `public/favicon.svg`
+  plus `assets/brand/terrace-mark-512.png` preview. Head entry (title,
+  description, favicon) in `nuxt.config.ts`.
 - The opentui agent skill was removed on 2026-11-05 (terrace is web-only now).
 
 ## Design reference - typing session UX (proven in the TUI, ready to port)
 
-- Char states: correct `#c0caf5`, pending `#565f89`, wrong `#f7768e` showing
-  the TYPED char (monkeytype-style), caret fg `#7aa2f7` + bg `#283457`.
+- Char states: correct `#c0caf5`, pending `#565f89`, on a mismatch the
+  TARGET letter stays visible in error `#f7768e` (terrace preference,
+  overriding the TUI-era monkeytype-style "show the typed char"), extras
+  show the typed char; caret fg `#7aa2f7` + bg `#283457`.
 - Perfect word = no errors AND no backspaces within the word's span,
   including its trailing space; that bumps the streak, anything else resets
   it. The streak counter is wanted in the session UI.
@@ -111,6 +166,24 @@ stale notes as the project evolves and date entries when useful.
 - 3-line sliding passage window, roughly 60-char wrap, current line centered.
 - Tab restarts the session; Esc returns to the menu (never bind `q` for quit
   inside a typing screen - it is a typing letter).
+- ctrl+backspace deletes a whole space-separated word: clears the active
+  word in one go; at a word start it deletes the previous word entirely and
+  moves the caret back. Cleared words keep a broken span (never perfect
+  again), so the streak does not survive a ctrl-deletion retype.
+
+## Difficulty ladder (terrace-owned, landed 2026-11-06)
+
+- Axis order: beginner, elementary, intermediate, advanced, expert,
+  master, general. Full spec (bands, data source, sampling) lives in the
+  "Terrace extension" section at the end of
+  `investigation/rebuild-report.md`.
+- Tiers are disjoint rank bands of the 50k ranked english table
+  (1k / 2k / 3k / 6k / 13k / 25k), drawn uniformly inside a band;
+  `general` is the whole table weighted by real occurrence counts
+  (~93% of draws land in the top-3k head).
+- Difficulty chips sit between the topbar and the test; selecting any
+  difficulty starts a fresh test (seed rerolls). Default is beginner; SSR
+  determinism is unaffected (switches only happen after mount).
 
 ## Design reference - game logic (from older prototypes, not yet ported)
 
@@ -127,12 +200,19 @@ stale notes as the project evolves and date entries when useful.
 
 ## Roadmap
 
-- Start page (the actual typing game in the browser) - the user deferred it
-  until after the landing page.
-- Port the typing-game logic from the references above (pure modules +
-  composables).
-- Summary screen after a session completes; SQLite storage for the focus
-  profile.
+- Landed 2026-11-06 (round 2): difficulty as terrace's own config axis
+  (beginner..general chips; OpenSubtitles-2018 frequency bands, `general`
+  frequency-weighted); vocab table vendored via `scripts/build-vocab.mjs`.
+- Landed 2026-11-06: ctrl+backspace whole-word delete (machine
+  `backspaceWord` + composable routing + hint bar); smoke harness made
+  durable at `scripts/smoke-typing.mjs` (`npm run smoke`); port convention
+  switched to 4000.
+- Landed 2026-11-05: the typing test + result screen on `/`; vector mark +
+  favicon.
+- Local PB storage (reference-style crown on the result screen): server-side
+  SQLite in Nitro routes is the leading candidate (see Storage below; none of
+  it is ported yet).
+- vitest + @nuxt/test-utils when game-logic tests land.
 
 ## Conventions
 

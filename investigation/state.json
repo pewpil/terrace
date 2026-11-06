@@ -1,0 +1,208 @@
+{
+  "revision": 35,
+  "brief": {
+    "question": "How do monkeytype.com's main typing-test page and its result screen actually work (DOM/CSS, input flow, word generation, stat math, completion/restart) so the Nuxt app 'terrace' can rebuild them with its own identity?",
+    "purpose": "The user wants a personal-use rebuild of monkeytype's main typing page as 'terrace' in their Nuxt app, with its own logo identity (via vectorcraft). Monkeytype is open source, but the user explicitly asked to reverse-engineer the shipped site.",
+    "targets": [
+      "https://monkeytype.com/ (shipped bundle copy in /tmp/opencode/monkeytype; public source at /tmp/opencode/monkeytype-repo, commit 2df8cbd46)"
+    ],
+    "constraints": [
+      "no git usage by the agent (read or write) unless the user explicitly asks",
+      "no reuse of monkeytype branding, fonts, images, license or assets in terrace; terrace gets its own logo via vectorcraft",
+      "scope: only the main test page (/) plus its result screen; no login, settings, profile pages",
+      "default configuration only (mode time 30, english default list); no settings UI",
+      "rebuild target: Nuxt 4 + TypeScript app; verify with typecheck/lint/build + curl smoke test on PORT=4173",
+      "live capture of monkeytype.com in the harness browser was expressly granted by the user and is now complete"
+    ],
+    "done_when": "Every in-scope mechanic is a ledger-backed finding (fnd_1..fnd_11 recorded, hypotheses hyp_2/hyp_3 supported), the implementation-ready rebuild report is saved at investigation/rebuild-report.md, and the Nuxt implementation is free to start."
+  },
+  "plan": [
+    {
+      "title": "Fetch the shipped site bundle and triage the target",
+      "status": "done"
+    },
+    {
+      "title": "Map the runtime architecture (entry, pages, scripts)",
+      "status": "done"
+    },
+    {
+      "title": "Word generation: vocabulary source and default config",
+      "status": "done"
+    },
+    {
+      "title": "Cross-check public repo (word gen, stats, result screen)",
+      "status": "done"
+    },
+    {
+      "title": "Typing loop: input handling, caret, line scrolling, fail conditions",
+      "status": "done"
+    },
+    {
+      "title": "Stat computations: wpm/raw/acc/consistency and test-end conditions",
+      "status": "done"
+    },
+    {
+      "title": "Result screen: layout and metrics plumbing",
+      "status": "done"
+    },
+    {
+      "title": "Live capture & scripted walkthrough on monkeytype.com",
+      "status": "done",
+      "why": "unlocked via fill; result screen, console/network and caret/scroll telemetry captured (fnd_9..11)"
+    },
+    {
+      "title": "Record findings with evidence, write the rebuild report, handoff",
+      "status": "done",
+      "why": "fnd_1..11 recorded; rebuild-report.md saved; handoff rewritten for the build phase"
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "hyp_1",
+      "claim": "Test content words are fetched from static same-origin JSON files at /languages/<language>.json; the default 'english' file carries the 200-word ordered-by-frequency 'noLazyMode' list, shipped files verified: english (200 words), english_1k (1000), english_10k, english_25k, english_450k, contractions, doubleletter, legal, medical (HTTP 200, hashed in project evidence).",
+      "prediction": "The site only requests /languages/<lang>.json from its own origin (not api.monkeytype.com) and a sha256 manifest inside the bundle verifies each file; restoring language loading + default config in the clone reproduces word supply.",
+      "status": "supported",
+      "supporting": [
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c",
+        "ev_76913e7883dc859ffb9b3dc05fc23ef9fed65ea1e5c4772f3a037311aa633a72"
+      ],
+      "contradicting": [],
+      "notes": [
+        "Served-file sha256 equals the embedded integrity manifest (perfect match), and only /languages/<lang>.json (same-origin statics) are used for word supply. Duplicate hypothesis of hyp_2; treat hyp_2 as canonical."
+      ]
+    },
+    {
+      "id": "hyp_2",
+      "claim": "Test content words come from static same-origin JSON files at /languages/<language>.json; default 'english' = the 200-word ordered-by-frequency noLazyMode list; english_1k/10k/25k/450k + contractions/doubleletter/legal/medical also served (HTTP 200).",
+      "prediction": "The app requests only /languages/<lang>.json from its own origin and a sha256 manifest in the bundle verifies each file; cloning the loader + default config reproduces word supply 1:1 for default tests.",
+      "status": "supported",
+      "supporting": [
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c",
+        "ev_76913e7883dc859ffb9b3dc05fc23ef9fed65ea1e5c4772f3a037311aa633a72"
+      ],
+      "contradicting": [],
+      "notes": [
+        "Shader integrity manifest match + memoized loader confirmed from restored utils; word lists hashed in project artifacts."
+      ]
+    },
+    {
+      "id": "hyp_3",
+      "claim": "A default run (time 30, english 200-word list) renders ~100 words up front, streams more words as the caret advances (keep-ahead 100), and ends exactly at the 30s boundary via the ~1s timer tick, then shows the result screen.",
+      "prediction": "Live capture will show on load ~100 words inside #words, appended words as the caret nears the end, and the result page completing at 30s with wpm/acc/consistency values plausible to the typed sample.",
+      "status": "supported",
+      "supporting": [
+        "ev_944c67c70c137c425b41a6867a74a62150a615b08d4b4b5f6addfe935bdf101b",
+        "ev_2f8a21d296c9566b1e145696d04a502278cb254eb5099a752b37d7f76d6fe54f"
+      ],
+      "contradicting": [],
+      "notes": [
+        "Shipped addWord body (restored line 12526) shows bound 100 + endless time-mode generation; repo cross-check matched word-for-word."
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "fnd_1",
+      "statement": "Test words ship as static same-origin JSON at /languages/<language>.json (not via api.monkeytype.com). Restored utils loader chain: Yi = fetch + 'Content is not JSON' guard, Xi = memoize wrapper (Zi = Xi(Yi)), ea/ta = cached per-language load; integrity = sha256(JSON bytes with zero pretty-print) vs an embedded manifest (restored utils line 2090: english `253965d2...`, line 2092: english_1k `95ddc0c1...`) bypassed only when Cn.isDevelopment (wn()). Observed equality: sha256 of the served files equals the manifest entries exactly. Observed word counts: english=200, english_1k=1000, english_10k=9944, english_25k=24141, english_450k=450029. english flags: noLazyMode=true, orderedByFrequency=true, list begins 'the be of and a to in he have it that for they I with as not on she at by this we you do but from or which one would all will there say who make when can'. Files kept at /tmp/opencode/monkeytype/languages-*.json (a few probe leftovers are 404 HTML pages sized 11795 bytes and must be discarded).",
+      "evidence_ids": [
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c",
+        "ev_76913e7883dc859ffb9b3dc05fc23ef9fed65ea1e5c4772f3a037311aa633a72"
+      ],
+      "confidence": "derived"
+    },
+    {
+      "id": "fnd_2",
+      "statement": "Shipped default config (restored main chunk, lines ~150-275 in pretty/monkeytype.CrLYrpdd.js, a defaults object later structuredClone-copied): mode:'time', time:30, words:50, language:'english', quoteLength:[1], fontSize:2, difficulty:'normal', punctuation:false, numbers:false, stopOnError:'off', deleteOnError:'off', smoothLineScroll:false, smoothCaret:'medium', showAllLines:false, caretStyle:'default', timerStyle:'mini', showKeyTips:true, quickRestart:'off', freedomMode:false, confidenceMode:'off', indicateTypos:'off', timerColor:'main', colorfulMode:false, fontFamily:'Roboto_Mono', playSoundOnError:'off', playSoundOnClick:'off'. Default theme palette literals: #e2b714 (main), #646669 (sub), #2c2e31 (bg), #d1d0c5 (text), #ca4754/#7e2a33 (error spans). Terrace must NOT copy this palette text verbatim - record only as behavior reference.",
+      "evidence_ids": [
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c",
+        "ev_76913e7883dc859ffb9b3dc05fc23ef9fed65ea1e5c4772f3a037311aa633a72"
+      ],
+      "confidence": "derived"
+    },
+    {
+      "id": "fnd_3",
+      "statement": "Shipped runtime metadata (restored utils Cn object, lines ~1115-1121): isDevelopment=false, backendUrl='https://api.monkeytype.com', recaptchaSiteKey='6Lc-V8McAAAAA...', clientVersion='2026.11.04_23.29_2df8cbd46' - the suffix equals the public repo commit pinned by the user-consented tarball, confirming the shipped build matches the consulted source.",
+      "evidence_ids": [
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c",
+        "ev_76913e7883dc859ffb9b3dc05fc23ef9fed65ea1e5c4772f3a037311aa633a72"
+      ],
+      "confidence": "observed"
+    },
+    {
+      "id": "fnd_4",
+      "statement": "Typing input architecture (restored main chunk, verifyable in shipped bytes): a hidden textarea #wordsInput (classes: full-width pointer-events-none absolute -z-1 caret-transparent opacity-0, spellcheck=false) holds text with a synthetic leading space (' ' + value); handlers beforeinput/input/keydown(xU->yU)/keyup/selectionchange/composition*/blur/focus. yU ignores e.repeat, records the typed-key timeline (Lh), handles Tab/Enter/bail-out/arrow-key filtering; per-char flow: before-insert guards -> insert-text starts the test on first char, marks char correct when typed char equals target char at current input length, treats space/newline as word commit, logs an append-only per-key event log that re-derives letters, stats and replay. Backspace: textarea-empty -> go to previous word restoring its input; otherwise delete within word (all deletions logged). stopOnError/deleteOnError 'off' = no-op by design.",
+      "evidence_ids": [
+        "ev_944c67c70c137c425b41a6867a74a62150a615b08d4b4b5f6addfe935bdf101b",
+        "ev_2f8a21d296c9566b1e145696d04a502278cb254eb5099a752b37d7f76d6fe54f",
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c"
+      ],
+      "confidence": "observed"
+    },
+    {
+      "id": "fnd_5",
+      "statement": "Word generation for the default test (time 30, english): initial generator limit is 100 words; a keep-ahead bound of 100 words ahead of the active index ('let e = 100' + 'Not adding word, enough words already' debug at restored line 12526, funbox 'toPush:' overrides) triggers addWord so time mode streams words indefinitely (generation never 'all generated' in time mode). Sampling = uniform random pick from language.words via Math.random - no first-letter grouping, no frequency weighting by default. Per-candidate filters: regeneration loop up to 100 tries rejects same-as-previous word, and when punctuation/numbers are off rejects the word 'I', any /[-=_+\\[\\]{};'\\\\:\"|,./<>?]/ chars and any digits; lowercase applied when punctuation is off; each word is committed with one trailing space character. english has noLazyMode=true so lazy accent mode auto-disables ('This language does not support lazy mode.' shipped string, line 12483); orderedByFrequency only gates the Zipf funbox support notice (lines 12806-7), not default sampling.",
+      "evidence_ids": [
+        "ev_944c67c70c137c425b41a6867a74a62150a615b08d4b4b5f6addfe935bdf101b",
+        "ev_2f8a21d296c9566b1e145696d04a502278cb254eb5099a752b37d7f76d6fe54f",
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c"
+      ],
+      "confidence": "derived"
+    },
+    {
+      "id": "fnd_6",
+      "statement": "Stat math (test-logic; cross-checked against the shipped event naming): WPM = correctWordChars / 5 / (durationSeconds/60), rounded 2dp; raw WPM = (allCorrectChars + incorrectChars + extraChars) / 5 / (duration/60); accuracy = correct input-events * 100 / all input-events (keystroke-level; deletions don't count); consistency = kogasa(cv) = 100 * (1 - tanh(cv + cv^3/3 + cv^5/5)) with cv = stddev/mean of per-second raw burst samples (chars per 1s bucket converted with the same wpm formula). Duration comes from the 'timer end' event in the event log. Time-mode end: ~1s animejs timer tick checks testTime >= Config.time -> hides caret, clears slow-timer, runs finish(): stops timer (logging its end event), builds the completed event log, computes stats/chart histories (wpm, raw [kogasa-transformed], burst, error counts), validity-gates the result (too short / repeated / afk / wpm > 350 are not saved), then shows the result page.",
+      "evidence_ids": [
+        "ev_944c67c70c137c425b41a6867a74a62150a615b08d4b4b5f6addfe935bdf101b",
+        "ev_2f8a21d296c9566b1e145696d04a502278cb254eb5099a752b37d7f76d6fe54f"
+      ],
+      "confidence": "derived"
+    },
+    {
+      "id": "fnd_7",
+      "statement": "Result screen: main = wpm + acc (crown when PB pending; acc balloon exact correct/incorrect keystroke counts); graph of wpm/raw/burst/errors over timer-boundary labels; secondary = raw, characters 'correct/incorrect/extra/missed' tout court joined with slashes, consistency (+ key-consistency %), time (config time; afk% and total-typed-today), test type (mode/language/difficulty + stop-on/delete-on lines when enabled), tag PBs; plus words history and replay. Buttons: next test (new wordset) and repeat (same wordset replaying the same RNG draws). PB: compared vs the locally stored PB wpm within the (mode, mode2, punctuation, numbers, language, difficulty, lazyMode) bucket; pending crown '+diff' until server-confirmed; eligibility gates: quote mode, PB-incompatible funboxes, stopOnError:letter with acc < 100, bailed-out tests. quickRestart default is 'off' in the shipped defaults (terrace may keep its own Tab-restart).",
+      "evidence_ids": [
+        "ev_944c67c70c137c425b41a6867a74a62150a615b08d4b4b5f6addfe935bdf101b",
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c",
+        "ev_2f8a21d296c9566b1e145696d04a502278cb254eb5099a752b37d7f76d6fe54f"
+      ],
+      "confidence": "derived"
+    },
+    {
+      "id": "fnd_8",
+      "statement": "Test page DOM/CSS (shipped css/monkeytype.Cn_MhuX8.css + restored templates): #typingTest > #wordsWrapper (translate=no) > .contents rows + #paceCaret + #caret (both class full-width default). #words is display:flex flex-wrap with per-word .word blocks of <letter> spans: untyped letter color var(--sub-color), .correct var(--text-color), .incorrect var(--error-color) (shows the TYPED character), .extra var(--error-extra-color), .extraCorrected border-right 2px dotted var(--main-color), .dead underline, .tabChar/.nlChar opacity .2. #caret default: width .1em, height 1.2em, background var(--caret-color), border-radius var(--roundness), transform-origin 0 0, position absolute, animation caretFlashSmooth 1s infinite; .off width 0; carrot/banana/monkey image variants; #paceCaret mirrors shapes and is hidden by default. Inputs are not user-visible; Monkeytype copies the letters from the hidden textarea.",
+      "evidence_ids": [
+        "ev_058e5dab0e6d74de1b5c742ab14209667745333f862e52b76055949e8877fb8c",
+        "ev_944c67c70c137c425b41a6867a74a62150a615b08d4b4b5f6addfe935bdf101b"
+      ],
+      "confidence": "observed"
+    },
+    {
+      "id": "fnd_9",
+      "statement": "Scripted typing on monkeytype v26.43.0 works only when the driver delivers real text-insertion input events: keyboard press steps report ok but never generate beforeinput insertText, so the engine marks no letter (verified across 161 presses with console gating confirmed); a single fill into #wordsInput instead delivers a full-string insertText that the engine accepts through its multi-char burst path (ZH splits data into per-char commits) and the 30s test then runs and ends on the result screen.",
+      "evidence_ids": [
+        "ev_cf0db44967cbc9fc89e94e6f1186dfcfdf4df261b32050616fa92ee19d972ad4",
+        "ev_3c94aa5eae473d785e9e9f6e5e6347cddda965880dafb1099c1d5c40858ba05c",
+        "ev_d937bfab556ee32593a6c8950283f5fea7cb540caa0acd9b3fdd53ecfe7c23aa"
+      ],
+      "confidence": "observed"
+    },
+    {
+      "id": "fnd_10",
+      "statement": "While text is being committed the #caret keeps its full-width default block and moves purely via inline left/top coordinates with animation-name:none (its caretFlashSmooth blink animation appears only on the idle test); across 12 fill-burst steps the caret advanced left 26.9→592→698px on line 1 (font-size 2rem, top ~5.5px), then wrapped onto lines 2 and 3 (top stepping ~5.6px→11.2→19→39.1→56.5px while left fell back to ~324/238px), and #wordsWrapper kept style height:153px with no inline transform - #words itself carries highlight-letter typed-effect-keep during typing.",
+      "evidence_ids": [
+        "ev_3c94aa5eae473d785e9e9f6e5e6347cddda965880dafb1099c1d5c40858ba05c"
+      ],
+      "confidence": "observed"
+    },
+    {
+      "id": "fnd_11",
+      "statement": "The completed-test view renders inside #result (content-grid full-width, #resultScreenshotTarget): primary stats wpm/acc as data-ui-element=resultStat blocks whose value divs carry balloon aria-labels with precise values and char tallies (wpm '0.00 wpm', acc '10.00% / 14 correct / 126 incorrect'), a secondary row raw, characters ('0/113/20/22' = correct/incorrect/extra/missed), consistency and time (with '96.63% afk' and '00:00:01 session' sublines), a 1148x200 chart canvas, info rows 'test type: time 30 english' and 'other' (which shows the invalid verdict 'afk detected' / 'invalid (accuracy)' in place of an accuracy tag), a 'Sign in to save your result' CTA for signed-out users, and action buttons practiseWordsButton, saveScreenshotButton, showWordHistoryButton, watchReplayButton.",
+      "evidence_ids": [
+        "ev_d937bfab556ee32593a6c8950283f5fea7cb540caa0acd9b3fdd53ecfe7c23aa"
+      ],
+      "confidence": "observed"
+    }
+  ],
+  "handoff": "## State after tier rename (2026-11-06) - rev 35\n\nDIFFICULTY RENAME (user request): \"easy\" is now \"beginner\". Renamed everywhere: Difficulty type + DIFFICULTIES + DEFAULT_DIFFICULTY + DIFFICULTY_BANDS key in app/utils/word-list.ts, engine doc comment in app/utils/word-engine.ts, smoke assertions (beginner band/head/default/ladder-order/engine-pool), build-vocab.mjs band-edge log label, AGENTS.md (current-state, difficulty section, roadmap) and the Terra-extension section in investigation/rebuild-report.md. The word \"easy\" still exists as VOCABULARY in en-ranked.ts (rank 412, inside the beginner band) - that is corpus data, intentionally untouched. Everything is backward-compatible inside the repo only: PB keys or stored profiles (none exist yet) would have needed this name settled before storage lands - good that it happened now.\n\nVerified: npm run smoke green, fmt:check, typecheck, lint, build; SSR on the user's live dev server (4000, curled as-is) shows the active chip \"beginner\".\n\nEverything else unchanged from rev 34 (difficulty axis architecture, bands, general weighting, ctrl+backspace, durable smoke). Next: PB storage (bucket now (mode, time, language, difficulty)), difficulty persistence, vitest migration. No new standards; the no-backticks-in-execute-payload gotcha from rev 34 still applies.",
+  "updated": "2026-11-06T05:25:13Z"
+}

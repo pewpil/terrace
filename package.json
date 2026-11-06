@@ -11,13 +11,15 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
-    "preview": "nuxt preview",
+    "preview": "PORT=4000 nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
+    "smoke": "esbuild scripts/smoke-typing.mjs --bundle --platform=node --format=esm --outfile=node_modules/.cache/terrace-smoke.mjs && node node_modules/.cache/terrace-smoke.mjs",
     "lint": "eslint .",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
-    "skill": "node scripts/install-skills.mjs"
+    "skill": "node scripts/install-skills.mjs",
+    "vocab": "node scripts/build-vocab.mjs"
   },
   "dependencies": {
     "nuxt": "^4.6.4",
