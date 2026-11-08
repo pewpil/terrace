@@ -174,14 +174,81 @@ terrace-owned behavior, not reference parity.
   (default `beginner`); `getDifficultyWords`, `isFrequencyWeighted`,
   `drawWeighted` are the word-list test helpers. Session/stat semantics
   are untouched.
-- UI: seven difficulty chips between the topbar and the test; the active
-  chip is accent-colored. Selecting a difficulty starts a fresh test with
-  a rerolled seed (same rule as tab). The result screen's test-type line
-  reads `time 30 english <difficulty>`.
+- UI: difficulty is a six-step slider between the topbar and the test -
+  a native range input (0-5, step 1) over the ladder tiers only
+  (beginner..master), with an accent-filled track, a round thumb, six tick
+  dots underneath, and a live name label. A separate `general` toggle sits
+  after the value: general is not a slider step. While general is enabled
+  the slider is disabled (dimmed, no input) and the general button is
+  accent-outlined; toggling general off restores the last ladder tier
+  (default beginner). The slider exposes its level name through
+  aria-valuetext and the general button uses aria-pressed. Selecting any
+  level/mode starts a fresh test with a rerolled seed (same rule as tab).
+  The result screen's test-type line reads
+  `time 30 english <difficulty>` (including general).
 - SSR determinism: unchanged - the first test renders the fixed
   `INITIAL_SEED` grid against the default difficulty (beginner), so
   hydration matches; difficulty switches only happen client-side after
   mount.
+
+## Terrace extension: punctuation, numbers and capitalization (landed 2026-11-06)
+
+The reference bakes punctuation and number tokens into its language word
+lists and filters them out when the modifiers are off (see the default
+generator note above). terrace's vocabulary is a clean lowercase frequency
+table, so the same user-facing modifiers are implemented as a pure transform
+over generated base words in `app/utils/word-mods.ts`. Capitalization is a
+terrace addition (the reference has no separate toggle for it). This is
+terrace-owned behaviour, not reference parity.
+
+- Config: three independent toggles, `punctuation`, `numbers` and
+  `capitalization` (any combination, including all three). All default off.
+  The toggles sit in their own row under the difficulty slider, each with an
+  icon (`!?`, `#`, `Aa`) plus its label; toggling any of them starts a fresh
+  test with a rerolled seed, exactly like a difficulty switch.
+- Punctuation: each emitted word has a 40% chance of one decoration -
+  either a matched wrapper (`"word"`, `'word'`, `(word)`, `[word]`,
+  `{word}`; 45% of decorations) or a trailing mark (`word,` `word.`
+  `word;` `word:` `word?` `word!`). Words without a decoration stay plain.
+- Numbers: each slot has a 20% chance of being replaced by a number (1-4
+  digits, no leading zero). When punctuation is also on, number forms
+  additionally include a currency prefix (`$42`), a percent suffix (`87%`),
+  thousands separators (`1,234`-`123,456`) and a decimal point (`4.05`).
+  Numbers do not get word wrappers; the numeric punctuation is their
+  decoration.
+- Capitalization: each word slot has a 20% chance of its first letter being
+  uppercased (`Word`). Numbers are unaffected (they have no letters).
+  Capitalization is applied before punctuation, so the capital stays inside
+  a wrapper (`"Word"`) and before a trailing mark (`Word,`). This is a
+  shift-key drill, not a grammar model - capitals can appear mid-sentence.
+- Randomness: every choice is drawn from the session's seeded PRNG. All
+  modifiers off consumes no extra draws, so the default word stream is
+  byte-identical to before (SSR hydration and `repeat` are unaffected).
+  `repeat` replays the same words and the same modifier choices.
+- Rendering/input: punctuation, digits and capitals are ordinary
+  characters - the caret measures their spans, `displayLetters` shows them
+  in the target-letter error style on a mismatch, and the session machine
+  counts them in wpm/accuracy like letters. A lowercase char typed against
+  a capital target is a mismatch. The key handler swallows every printable
+  key (not just space) so browser find-as-you-type (`'` in Firefox) and
+  page scrolling cannot steal the test. Digits work because the modifier
+  guard only filters ctrl/meta/alt, not shift or plain digits.
+- Session/stat semantics are untouched: spaces still commit, a partial
+  commit is still an error, and a decorated word is perfect only when its
+  whole span (marks, capitals included) is typed without errors or
+  backspaces.
+- Result screen test-type line appends the active modifiers:
+  `time 30 english beginner punctuation numbers capitalization` (each only
+  when on). The topbar config summary mirrors them live.
+- Smoke coverage (`scripts/smoke-typing.mjs`): direct transforms with a
+  scripted RNG (wrapper, suffix, plain, digits, currency form, capital,
+  capital-in-wrapper), a same-seed determinism check for each modifier,
+  base-word containment for punctuation/capitalization outputs, "numbers
+  are words or digits", number-specific decorated forms, an all-three
+  combination check, no adjacent duplicates, and sessions that type a
+  quoted word, a number word, a wrapped/suffixed word and a capitalized
+  word to a perfect 100% accuracy with the expected character count, plus
+  a lowercase-vs-capital mismatch check.
 
 ## Evidence ledger
 

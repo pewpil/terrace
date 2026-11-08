@@ -5,6 +5,9 @@ export default withNuxt(
   {
     rules: {
       'no-console': 'error',
+      // Prettier writes void elements self-closed (<input />); keep the Vue
+      // rule in agreement with the formatter instead of fighting it.
+      'vue/html-self-closing': ['warn', { html: { void: 'always' } }],
     },
   },
   {

@@ -9,6 +9,9 @@ const props = defineProps<{
     time: number
     language: string
     difficulty: string
+    punctuation: boolean
+    numbers: boolean
+    capitalization: boolean
   }
 }>()
 
@@ -32,10 +35,15 @@ const charactersText = computed(() => {
 
 const secondsText = computed(() => `${Math.round(props.stats.timeMs / 1000)}s`)
 
-const typeText = computed(
-  () =>
-    `${props.config.mode} ${props.config.time} ${props.config.language} ${props.config.difficulty}`,
-)
+const typeText = computed(() => {
+  const mods = [
+    props.config.difficulty,
+    props.config.punctuation ? 'punctuation' : '',
+    props.config.numbers ? 'numbers' : '',
+    props.config.capitalization ? 'capitalization' : '',
+  ].filter(Boolean)
+  return `${props.config.mode} ${props.config.time} ${props.config.language} ${mods.join(' ')}`
+})
 
 const canvasEl = useTemplateRef<HTMLCanvasElement>('chartEl')
 

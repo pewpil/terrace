@@ -7,7 +7,7 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { DIFFICULTIES } from '../utils/word-list'
+import { DEFAULT_DIFFICULTY, DIFFICULTIES } from '../utils/word-list'
 import type { Difficulty } from '../utils/word-list'
 
 const {
@@ -22,20 +22,89 @@ const {
   remainingMs,
   frozenStats,
   difficulty,
+  punctuation,
+  numbers,
+  capitalization,
   nextTest,
   repeatTest,
   selectDifficulty,
+  setPunctuation,
+  setNumbers,
+  setCapitalization,
   focus,
 } = useTypingSession()
 
-const difficultyOptions = DIFFICULTIES
+/** The ladder on the slider; 'general' is a separate mode toggle. */
+const ladderOptions: Difficulty[] = DIFFICULTIES.filter((d) => d !== 'general')
 
-/** Chips are buttons - blur them so typing keys stay with the session. */
-function onSelectDifficulty(event: MouseEvent, d: Difficulty): void {
+/** Last ladder tier. 'general' leaves it untouched so toggling back
+ * restores the previous level. */
+const ladderDifficulty = ref(
+  difficulty.value === 'general' ? DEFAULT_DIFFICULTY : difficulty.value,
+)
+
+watch(difficulty, (next) => {
+  if (next !== 'general') ladderDifficulty.value = next
+})
+
+const ladderIndex = computed(() =>
+  ladderOptions.indexOf(ladderDifficulty.value),
+)
+const isGeneral = computed(() => difficulty.value === 'general')
+
+/** Filled portion of the difficulty slider, as a CSS percentage. */
+const difficultyFill = computed(() => {
+  const max = ladderOptions.length - 1
+  if (max <= 0) return '0%'
+  const index = Math.max(0, ladderIndex.value)
+  return `${(index / max) * 100}%`
+})
+
+/** The slider selects immediately; repeated same-value steps no-op. */
+function onDifficultyInput(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement) || target.disabled) return
+  const next = ladderOptions[Number(target.value)]
+  if (next !== undefined) selectDifficulty(next)
+}
+
+/** 'general' overrides the ladder; the slider is disabled while it is on. */
+function onToggleGeneral(event: MouseEvent): void {
+  blurControl(event)
+  selectDifficulty(isGeneral.value ? ladderDifficulty.value : 'general')
+}
+
+/** Modifier toggles are buttons - blur them so typing keys stay with the
+ * session. */
+function blurControl(event: MouseEvent): void {
   const target = event.currentTarget
   if (target instanceof HTMLElement) target.blur()
-  selectDifficulty(d)
 }
+
+function onTogglePunctuation(event: MouseEvent): void {
+  blurControl(event)
+  setPunctuation(!punctuation.value)
+}
+
+function onToggleNumbers(event: MouseEvent): void {
+  blurControl(event)
+  setNumbers(!numbers.value)
+}
+
+function onToggleCapitalization(event: MouseEvent): void {
+  blurControl(event)
+  setCapitalization(!capitalization.value)
+}
+
+/** Topbar summary: time/mode plus the active word modifiers. */
+const configLabel = computed(() => {
+  const mods = [
+    punctuation.value ? 'punctuation' : '',
+    numbers.value ? 'numbers' : '',
+    capitalization.value ? 'capitalization' : '',
+  ].filter(Boolean)
+  return `time 30 | english${mods.length > 0 ? ` | ${mods.join(' ')}` : ''}`
+})
 
 const viewportEl = useTemplateRef<HTMLElement>('viewportEl')
 const wordsEl = useTemplateRef<HTMLElement>('wordsEl')
@@ -125,19 +194,78 @@ onUnmounted(() => {
   <main class="page">
     <header class="topbar">
       <span class="logo">terrace</span>
-      <span class="config">time 30 | english</span>
+      <span class="config">{{ configLabel }}</span>
     </header>
 
-    <nav class="diff" aria-label="word difficulty">
+    <div class="difficulty">
+      <label class="difficulty-label" for="difficulty-slider">
+        difficulty
+      </label>
+      <div class="difficulty-slider-wrap">
+        <input
+          id="difficulty-slider"
+          class="difficulty-slider"
+          type="range"
+          min="0"
+          :max="ladderOptions.length - 1"
+          step="1"
+          :value="ladderIndex"
+          :style="{ '--fill': difficultyFill }"
+          :disabled="isGeneral"
+          :aria-valuetext="difficulty"
+          @input="onDifficultyInput"
+        />
+        <div class="difficulty-ticks" aria-hidden="true">
+          <span
+            v-for="(d, i) in ladderOptions"
+            :key="d"
+            :class="{ reached: !isGeneral && i <= ladderIndex }"
+          />
+        </div>
+      </div>
+      <span class="difficulty-value">{{ difficulty }}</span>
       <button
-        v-for="d in difficultyOptions"
-        :key="d"
         type="button"
-        class="diff-item"
-        :class="{ active: d === difficulty }"
-        @click="onSelectDifficulty($event, d)"
+        class="general-toggle"
+        :class="{ active: isGeneral }"
+        :aria-pressed="isGeneral"
+        @click="onToggleGeneral"
       >
-        {{ d }}
+        general
+      </button>
+    </div>
+
+    <nav class="mods" aria-label="word modifiers">
+      <span class="mods-label" aria-hidden="true">with</span>
+      <button
+        type="button"
+        class="mod-item"
+        :class="{ active: punctuation }"
+        :aria-pressed="punctuation"
+        @click="onTogglePunctuation"
+      >
+        <ModifierIcon name="punctuation" />
+        <span>punctuation</span>
+      </button>
+      <button
+        type="button"
+        class="mod-item"
+        :class="{ active: numbers }"
+        :aria-pressed="numbers"
+        @click="onToggleNumbers"
+      >
+        <ModifierIcon name="numbers" />
+        <span>numbers</span>
+      </button>
+      <button
+        type="button"
+        class="mod-item"
+        :class="{ active: capitalization }"
+        :aria-pressed="capitalization"
+        @click="onToggleCapitalization"
+      >
+        <ModifierIcon name="capitalization" />
+        <span>capitalization</span>
       </button>
     </nav>
 
@@ -191,7 +319,15 @@ onUnmounted(() => {
     <div v-else-if="frozenStats" class="result-wrap">
       <ResultScreen
         :stats="frozenStats"
-        :config="{ mode: 'time', time: 30, language: 'english', difficulty }"
+        :config="{
+          mode: 'time',
+          time: 30,
+          language: 'english',
+          difficulty,
+          punctuation,
+          numbers,
+          capitalization,
+        }"
         @next="nextTest()"
         @repeat="repeatTest()"
       />
@@ -235,15 +371,186 @@ onUnmounted(() => {
   letter-spacing: 0.08em;
 }
 
-.diff {
+.difficulty {
   width: min(72rem, 94vw);
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem 1.5rem;
-  padding-block: 0.35rem 0.55rem;
+  align-items: center;
+  gap: 1.1rem;
+  padding-block: 0.35rem 0.5rem;
 }
 
-.diff-item {
+.difficulty-label {
+  color: var(--dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.difficulty-slider-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 15rem;
+}
+
+.difficulty-slider {
+  --fill: 0%;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 0.9rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.difficulty-slider:focus {
+  outline: none;
+}
+
+.difficulty-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0 var(--fill),
+    rgb(86 95 137 / 45%) var(--fill) 100%
+  );
+}
+
+.difficulty-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: -0.28rem;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.difficulty-slider::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(86 95 137 / 45%);
+}
+
+.difficulty-slider::-moz-range-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.difficulty-slider::-moz-range-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.difficulty-slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.difficulty-slider:disabled::-webkit-slider-runnable-track {
+  background: rgb(86 95 137 / 45%);
+}
+
+.difficulty-slider:disabled::-webkit-slider-thumb {
+  background: var(--dim);
+}
+
+.difficulty-slider:disabled::-moz-range-track {
+  background: rgb(86 95 137 / 45%);
+}
+
+.difficulty-slider:disabled::-moz-range-progress {
+  background: var(--dim);
+}
+
+.difficulty-slider:disabled::-moz-range-thumb {
+  background: var(--dim);
+}
+
+.difficulty-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgb(166 227 161 / 25%);
+}
+
+.difficulty-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgb(166 227 161 / 25%);
+}
+
+.difficulty-ticks {
+  display: flex;
+  justify-content: space-between;
+  padding-inline: 0.375rem;
+}
+
+.difficulty-ticks span {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--dim);
+  opacity: 0.45;
+}
+
+.difficulty-ticks span.reached {
+  background: var(--accent);
+  opacity: 0.8;
+}
+
+.difficulty-value {
+  min-width: 6.5rem;
+  color: var(--accent);
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+}
+
+.general-toggle {
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  background: none;
+  border: 1px solid rgb(86 95 137 / 45%);
+  border-radius: 2px;
+  padding: 0.22rem 0.55rem;
+  cursor: pointer;
+}
+
+.general-toggle:hover {
+  color: var(--text);
+  border-color: var(--dim);
+}
+
+.general-toggle.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.mods {
+  width: min(72rem, 94vw);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 1.5rem;
+  padding-block: 0 0.55rem;
+}
+
+.mods-label {
+  color: var(--dim);
+  opacity: 0.7;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.mod-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font-family: inherit;
   font-size: 0.9rem;
   letter-spacing: 0.08em;
@@ -254,12 +561,32 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.diff-item:hover {
+.mod-item:hover {
   color: var(--text);
 }
 
-.diff-item.active {
+.mod-item.active {
   color: var(--accent);
+}
+
+@media (max-width: 620px) {
+  .difficulty {
+    gap: 0.75rem;
+  }
+
+  .difficulty-slider-wrap {
+    width: 10rem;
+  }
+
+  .difficulty-value {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .difficulty-slider-wrap {
+    width: 7.5rem;
+  }
 }
 
 .test {

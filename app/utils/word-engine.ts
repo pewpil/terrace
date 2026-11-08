@@ -7,8 +7,13 @@
  * Words are drawn from the engine's difficulty pool - uniformly within a
  * tier, or by real-world frequency share for 'general'. A word equal to
  * the previous word is rejected.
+ *
+ * The optional punctuation/numbers/capitalization modifiers run on the same
+ * seeded stream (see word-mods.ts); when they are all off no extra random
+ * values are drawn, keeping the default test identical.
  */
 
+import { modifyWord } from './word-mods'
 import {
   DEFAULT_DIFFICULTY,
   drawWeighted,
@@ -46,6 +51,12 @@ export interface WordEngineOptions {
   keepAhead?: number
   /** Which difficulty pool to draw from. Default 'beginner'. */
   difficulty?: Difficulty
+  /** Attach punctuation marks to generated words. Default false. */
+  punctuation?: boolean
+  /** Replace some generated words with numbers. Default false. */
+  numbers?: boolean
+  /** Uppercase the first letter of some words. Default false. */
+  capitalization?: boolean
 }
 
 export function createWordEngine(
@@ -56,25 +67,44 @@ export function createWordEngine(
   const difficulty = options.difficulty ?? DEFAULT_DIFFICULTY
   const pool = getDifficultyWords(difficulty)
   const weighted = isFrequencyWeighted(difficulty)
+  const punctuation = options.punctuation ?? false
+  const numbers = options.numbers ?? false
+  const capitalization = options.capitalization ?? false
 
   let words: string[] = []
-  let previous = ''
+  // the previous base word is rejected (variety); the emitted word is too
+  // (punctuation and numbers can make two different bases look identical)
+  let previousBase = ''
+  let previousWord = ''
 
   function nextWord(): string {
     for (let tries = 0; tries < pool.length * 2 + 8; tries++) {
       const candidate = weighted
         ? drawWeighted(random)
         : pool[Math.floor(random() * pool.length)]
-      if (candidate === undefined || candidate === previous) continue
-      previous = candidate
-      return candidate
+      if (candidate === undefined || candidate === previousBase) continue
+      const word = modifyWord(candidate, random, {
+        punctuation,
+        numbers,
+        capitalization,
+      })
+      if (word === previousWord) continue
+      previousBase = candidate
+      previousWord = word
+      return word
     }
     // the retry loop always succeeds for pools this large; unrepeatable
     // safety net: return a word different from the previous one
     const first = pool[0] ?? 'the'
     const second = pool[1] ?? 'and'
-    const fallback = first === previous ? second : first
-    previous = fallback
+    const base = first === previousBase ? second : first
+    const fallback = modifyWord(base, random, {
+      punctuation,
+      numbers,
+      capitalization,
+    })
+    previousBase = base
+    previousWord = fallback
     return fallback
   }
 

@@ -25,6 +25,12 @@ export interface TypingSessionState {
   streak: Ref<number>
   /** Selected vocabulary difficulty (drives the engine pool). */
   difficulty: Ref<Difficulty>
+  /** Attach punctuation marks to generated words. */
+  punctuation: Ref<boolean>
+  /** Replace some generated words with numbers. */
+  numbers: Ref<boolean>
+  /** Uppercase the first letter of some generated words. */
+  capitalization: Ref<boolean>
   /** Letters for every engine word, pending ones included. */
   words: ComputedRef<DisplayLetter[][]>
   activeIndex: ComputedRef<number>
@@ -37,6 +43,12 @@ export interface TypingSessionState {
   repeatTest(): void
   /** Fresh test on another vocabulary difficulty (seed rerolls). */
   selectDifficulty(next: Difficulty): void
+  /** Fresh test with punctuation on/off (seed rerolls). */
+  setPunctuation(enabled: boolean): void
+  /** Fresh test with numbers on/off (seed rerolls). */
+  setNumbers(enabled: boolean): void
+  /** Fresh test with capitalization on/off (seed rerolls). */
+  setCapitalization(enabled: boolean): void
   /** Show the words again after Esc. */
   focus(): void
 }
@@ -60,6 +72,9 @@ export function useTypingSession(
   const streak = ref(0)
   const frozenStats = shallowRef<SessionStats | null>(null)
   const difficulty = shallowRef<Difficulty>(DEFAULT_DIFFICULTY)
+  const punctuation = ref(false)
+  const numbers = ref(false)
+  const capitalization = ref(false)
 
   let seed = INITIAL_SEED
   let session = createSession()
@@ -72,6 +87,9 @@ export function useTypingSession(
     return createTypingSession({
       engine: createWordEngine(mulberry32(seed), {
         difficulty: difficulty.value,
+        punctuation: punctuation.value,
+        numbers: numbers.value,
+        capitalization: capitalization.value,
       }),
       limitMs,
     })
@@ -133,6 +151,25 @@ export function useTypingSession(
     restart(false)
   }
 
+  function setPunctuation(enabled: boolean): void {
+    if (enabled === punctuation.value) return
+    punctuation.value = enabled
+    // a different word stream is a fresh test, same as a difficulty switch
+    restart(false)
+  }
+
+  function setNumbers(enabled: boolean): void {
+    if (enabled === numbers.value) return
+    numbers.value = enabled
+    restart(false)
+  }
+
+  function setCapitalization(enabled: boolean): void {
+    if (enabled === capitalization.value) return
+    capitalization.value = enabled
+    restart(false)
+  }
+
   function focus(): void {
     focused.value = true
   }
@@ -169,10 +206,9 @@ export function useTypingSession(
     // printable characters only; Enter (key === 'Enter') is ignored in time
     // mode, matching the reference behaviour
     if (e.key.length !== 1) return
-    if (e.key === ' ') {
-      // a space would otherwise scroll the page
-      e.preventDefault()
-    }
+    // swallow every printable key: without this, browser find-as-you-type
+    // (e.g. ' in Firefox) and page scrolling for space steal the test
+    e.preventDefault()
     session.type(e.key, Date.now())
     afterKeystroke()
   }
@@ -203,6 +239,9 @@ export function useTypingSession(
     remainingMs,
     streak,
     difficulty,
+    punctuation,
+    numbers,
+    capitalization,
     words,
     activeIndex,
     activeTypedLen,
@@ -210,6 +249,9 @@ export function useTypingSession(
     nextTest,
     repeatTest,
     selectDifficulty,
+    setPunctuation,
+    setNumbers,
+    setCapitalization,
     focus,
   }
 }

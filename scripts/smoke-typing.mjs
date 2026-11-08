@@ -3,6 +3,7 @@
 // the entry stays plain .mjs so `no-console` exemptions apply; the imported
 // app modules are TypeScript and get bundled in.
 import { createWordEngine, mulberry32 } from '../app/utils/word-engine'
+import { modifyWord } from '../app/utils/word-mods'
 import {
   DEFAULT_DIFFICULTY,
   DIFFICULTIES,
@@ -85,6 +86,224 @@ ok(
 )
 const nearHead = genWords.filter((w) => (rankOf.get(w) ?? 50_000) < 3000).length
 ok('general frequency-skewed', nearHead > genWords.length * 0.5)
+
+// --- punctuation / numbers modifiers (terrace-owned: applied to generated
+//     words because the vocab table itself is clean lowercase) ---
+const seq = (...values) => {
+  let i = 0
+  return () => values[i++] ?? 0
+}
+ok('mods off leaves word untouched', modifyWord('word', () => 0) === 'word')
+ok(
+  'punctuation wraps with a pair',
+  modifyWord('word', () => 0, { punctuation: true }) === '"word"',
+)
+ok(
+  'punctuation appends a mark',
+  modifyWord('word', seq(0.1, 0.9, 0), { punctuation: true }) === 'word,',
+)
+ok(
+  'punctuation leaves some words plain',
+  modifyWord('word', () => 0.9, { punctuation: true }) === 'word',
+)
+ok(
+  'numbers replaces a word with digits',
+  modifyWord('word', () => 0, { numbers: true }) === '1',
+)
+ok(
+  'numbers + punctuation uses a currency form',
+  modifyWord('word', () => 0, { numbers: true, punctuation: true }) === '$1',
+)
+ok(
+  'capitalization uppercases the first letter',
+  modifyWord('word', () => 0, { capitalization: true }) === 'Word',
+)
+ok(
+  'capitalization leaves some words lowercase',
+  modifyWord('word', () => 0.9, { capitalization: true }) === 'word',
+)
+ok(
+  'capitalization stays inside the wrapper',
+  modifyWord('word', () => 0, {
+    capitalization: true,
+    punctuation: true,
+  }) === '"Word"',
+)
+
+// mods off must not consume random draws: identical stream to the old default
+const plainStream = createWordEngine(mulberry32(99))
+const offStream = createWordEngine(mulberry32(99), {
+  punctuation: false,
+  numbers: false,
+})
+plainStream.ensure(50)
+offStream.ensure(50)
+ok(
+  'mods off keeps the default stream identical',
+  plainStream.words.join(' ') === offStream.words.join(' '),
+)
+ok(
+  'mods off words stay alpha',
+  plainStream.words.every((w) => /^[a-z]+$/.test(w)),
+)
+
+// punctuation draws are deterministic and keep the underlying vocab word
+const punctA = createWordEngine(mulberry32(99), { punctuation: true })
+const punctB = createWordEngine(mulberry32(99), { punctuation: true })
+punctA.ensure(200)
+punctB.ensure(200)
+const punctWords = punctA.words
+ok('punctuation deterministic', punctWords.join(' ') === punctB.words.join(' '))
+ok(
+  'punctuation bases stay in the beginner band',
+  punctWords.every((w) => beginnerSet.has(w.replace(/[^a-z]/g, ''))),
+)
+ok(
+  'punctuation charset typeable',
+  punctWords.every((w) => /^["'()[\]{}a-z,.;:?!]+$/.test(w)),
+)
+const decorated = punctWords.filter((w) => /[^a-z]/.test(w)).length
+ok('punctuation decorates some words', decorated > 20)
+ok('punctuation leaves some words plain', decorated < punctWords.length)
+ok(
+  'punctuation has wrapped words',
+  punctWords.some((w) => /^".*"$|^'.*'$|^\(.*\)$|^\[.*\]$|^\{.*\}$/.test(w)),
+)
+ok(
+  'punctuation has suffix words',
+  punctWords.some((w) => /[a-z][,.;:?!]$/.test(w)),
+)
+ok(
+  'punctuation no adjacent dupes',
+  punctWords.every((w, i) => i === 0 || w !== punctWords[i - 1]),
+)
+
+// numbers replace some words; punctuation adds number-specific forms
+const numA = createWordEngine(mulberry32(99), { numbers: true })
+const numB = createWordEngine(mulberry32(99), { numbers: true })
+numA.ensure(200)
+numB.ensure(200)
+const numWords = numA.words
+ok('numbers deterministic', numWords.join(' ') === numB.words.join(' '))
+ok(
+  'numbers output words or digits',
+  numWords.every((w) => /^[a-z]+$/.test(w) || /^\d+$/.test(w)),
+)
+const numeric = numWords.filter((w) => /^\d+$/.test(w)).length
+ok('numbers replaces some words', numeric > 10)
+ok('numbers leaves some words', numeric < numWords.length)
+ok(
+  'numbers no adjacent dupes',
+  numWords.every((w, i) => i === 0 || w !== numWords[i - 1]),
+)
+
+const both = createWordEngine(mulberry32(99), {
+  punctuation: true,
+  numbers: true,
+})
+both.ensure(200)
+const bothWords = both.words
+ok(
+  'both modifiers charset typeable',
+  bothWords.every((w) => /^["'()[\]{}a-z0-9,.;:?!%$]+$/.test(w)),
+)
+ok(
+  'both modifiers decorate numbers',
+  bothWords.some((w) => /\d/.test(w) && /[,$%.]/.test(w)),
+)
+
+// capitalization: some words upper their first letter, some stay lowercase
+const capA = createWordEngine(mulberry32(99), { capitalization: true })
+const capB = createWordEngine(mulberry32(99), { capitalization: true })
+capA.ensure(200)
+capB.ensure(200)
+const capWords = capA.words
+ok('capitalization deterministic', capWords.join(' ') === capB.words.join(' '))
+ok(
+  'capitalization output alpha only',
+  capWords.every((w) => /^[A-Za-z]+$/.test(w)),
+)
+const capped = capWords.filter((w) => /^[A-Z]/.test(w)).length
+ok('capitalization uppercases some words', capped > 10)
+ok('capitalization leaves some words lowercase', capped < capWords.length)
+ok(
+  'capitalization no adjacent dupes',
+  capWords.every((w, i) => i === 0 || w !== capWords[i - 1]),
+)
+
+// all three modifiers together: caps, digits and marks all surface and the
+// underlying letter bases stay inside the beginner band
+const allMods = createWordEngine(mulberry32(99), {
+  punctuation: true,
+  numbers: true,
+  capitalization: true,
+})
+allMods.ensure(200)
+const allWords = allMods.words
+ok(
+  'all modifiers charset typeable',
+  allWords.every((w) => /^["'()[\]{}A-Za-z0-9,.;:?!%$]+$/.test(w)),
+)
+ok(
+  'all modifiers mix caps, digits and marks',
+  allWords.some((w) => /[A-Z]/.test(w)) &&
+    allWords.some((w) => /\d/.test(w)) &&
+    allWords.some((w) => /[^A-Za-z0-9]/.test(w)),
+)
+ok(
+  'all modifier letter bases stay in the beginner band',
+  allWords
+    .map((w) => w.replace(/[^A-Za-z]/g, '').toLowerCase())
+    .filter((w) => w.length > 0)
+    .every((w) => beginnerSet.has(w)),
+)
+
+// the session machine types capitals like any other char, and a lowercase
+// char against a capital target is a mismatch
+const caseSession = createTypingSession({
+  engine: { words: ['Capitalized'], ensure() {} },
+  limitMs: 30_000,
+})
+let cts = 500
+for (const c of 'capitalized') {
+  cts += 80
+  caseSession.type(c, cts)
+}
+const caseLetters = displayLetters(caseSession.words[0])
+ok('lowercase against capital target mismatches', caseSession.words[0].hadError)
+ok(
+  'mismatch keeps capital target visible',
+  caseLetters[0]?.char === 'C' && caseLetters[0]?.state === 'incorrect',
+)
+
+// the session machine types punctuation and digits like any other char
+const modStub = {
+  words: ['"hello"', '42', '(world),', 'Capitalized'],
+  ensure() {},
+}
+const modSession = createTypingSession({ engine: modStub, limitMs: 30_000 })
+let mts = 500
+const typeMod = (s) => {
+  for (const c of s) {
+    mts += 90
+    modSession.type(c, mts)
+  }
+}
+typeMod('"hello" ')
+ok(
+  'quoted word commits perfectly',
+  modSession.words[0].done === true && modSession.streak === 1,
+)
+typeMod('42 ')
+ok(
+  'number word commits perfectly',
+  modSession.words[1].done === true && modSession.streak === 2,
+)
+typeMod('(world), ')
+typeMod('Capitalized ')
+const modStats = modSession.finish(mts + 30_000)
+ok('modifier chars counted', modStats.characters.correct === 32)
+ok('modifier session acc 100', modStats.acc === 100)
 
 // --- typing session: target the engine's own words ---
 const sesEngine = createWordEngine(mulberry32(7))
@@ -317,4 +536,10 @@ console.log(
   '| s3 retype committed + span broken',
   '| gen top3k head skew',
   `${Math.round((nearHead / genWords.length) * 100)}%`,
+  '| punct decorated',
+  decorated,
+  '| numbers drawn',
+  numeric,
+  '| caps',
+  capped,
 )
